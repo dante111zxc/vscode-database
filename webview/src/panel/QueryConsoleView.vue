@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { Play } from 'lucide-vue-next'
 import { usePanelStore } from './panelStore'
 import { highlightSql, escapeHtml } from './sqlHighlight'
-import { buildSuggestions, canShowSuggestion, formatSql, isKeywordToken, kindLabel, suggestionStart } from './sqlCompletion'
+import { buildSuggestions, canShowSuggestion, formatSql, isKeywordToken, kindLabel, splitStatements, suggestionStart } from './sqlCompletion'
 import type { Suggestion } from './sqlCompletion'
 import DataGrid from './DataGrid.vue'
 
@@ -32,6 +31,9 @@ const suggestStyle = computed(() => ({
 
 const pageInput = ref(1)
 
+const contextMenu = ref({ open: false, x: 0, y: 0 })
+const contextEdit = ref({ hasSelection: false })
+
 const editorHeight = ref(220)
 
 const MIN_EDITOR_HEIGHT = 120
@@ -55,18 +57,23 @@ function startResize(event: PointerEvent): void {
   window.addEventListener('pointerup', onUp)
 }
 
+const activeResult = computed(() => store.activeResult())
+
 const totalPages = computed(() => {
-  const result = store.queryResult
+  const result = activeResult.value
   if (!result || result.total == null || result.pageSize <= 0) {
     return 1
   }
   return Math.max(1, Math.ceil(result.total / result.pageSize))
 })
 
-const hasPrevPage = computed(() => (pageInput.value > 1 || store.queryPage > 1) && !store.running)
+const hasPrevPage = computed(() => {
+  const result = activeResult.value
+  return result != null && (pageInput.value > 1 || result.page > 1) && !store.running
+})
 
 const hasNextPage = computed(() => {
-  const result = store.queryResult
+  const result = activeResult.value
   if (!result) {
     return false
   }
@@ -74,9 +81,11 @@ const hasNextPage = computed(() => {
 })
 
 watch(
-  () => store.queryPage,
+  () => activeResult.value?.page,
   (page) => {
-    pageInput.value = page
+    if (typeof page === 'number') {
+      pageInput.value = page
+    }
   },
   { immediate: true }
 )
@@ -205,7 +214,87 @@ function runSelectionOrAll(): void {
     return
   }
   const selected = el.value.slice(el.selectionStart, el.selectionEnd).trim()
-  store.runQuery(selected || store.sql)
+  const source = selected || el.value
+  store.runStatements(splitStatements(source))
+}
+
+watch(
+  () => store.runRequest,
+  () => {
+    runSelectionOrAll()
+  }
+)
+
+function openContextMenu(event: MouseEvent): void {
+  event.preventDefault()
+  const el = editorEl()
+  contextEdit.value.hasSelection = !!el && el.selectionStart !== el.selectionEnd
+  contextMenu.value = { open: true, x: event.clientX, y: event.clientY }
+}
+
+function hideContextMenu(): void {
+  contextMenu.value.open = false
+}
+
+function focusEditor(): HTMLTextAreaElement | null {
+  const el = editorEl()
+  el?.focus()
+  return el
+}
+
+function onCut(): void {
+  hideContextMenu()
+  const el = focusEditor()
+  if (!el || el.selectionStart === el.selectionEnd) {
+    return
+  }
+  document.execCommand('cut')
+}
+
+function onCopy(): void {
+  hideContextMenu()
+  const el = focusEditor()
+  if (!el || el.selectionStart === el.selectionEnd) {
+    return
+  }
+  document.execCommand('copy')
+}
+
+function onPaste(): void {
+  hideContextMenu()
+  const el = focusEditor()
+  if (!el) {
+    return
+  }
+  const committed = document.execCommand('paste')
+  if (!committed) {
+    void navigator.clipboard
+      .readText()
+      .then((text) => {
+        if (!text || !el.isConnected) {
+          return
+        }
+        const start = el.selectionStart
+        const end = el.selectionEnd
+        const value = `${el.value.slice(0, start)}${text}${el.value.slice(end)}`
+        el.value = value
+        store.sql = value
+        const pos = start + text.length
+        el.setSelectionRange(pos, pos)
+        store.notifySql(value)
+        void nextTick(updateMirror)
+        void nextTick(syncHighlight)
+      })
+      .catch(() => undefined)
+  }
+}
+
+function onSelectAll(): void {
+  const el = focusEditor()
+  if (!el) {
+    return
+  }
+  el.select()
 }
 
 function onCaretMove(): void {
@@ -348,13 +437,18 @@ watch(
 
 onMounted(() => {
   editorEl()?.focus()
+  window.addEventListener('pointerdown', hideContextMenu)
 })
 </script>
 
 <template>
   <div class="flex h-full flex-col">
-    <div class="border-b border-slate-800 px-4 py-2">
-      <div class="ql-shell relative" :style="{ height: `${editorHeight}px` }">
+<div class="border-b border-slate-800 px-4 py-2">
+        <div
+          class="ql-shell relative"
+          :style="{ height: `${editorHeight}px` }"
+          @contextmenu="openContextMenu"
+        >
         <pre ref="highlight" class="ql-layer" aria-hidden="true" v-html="highlightedHtml"></pre>
         <div ref="mirror" class="ql-layer ql-mirror" aria-hidden="true"></div>
         <textarea
@@ -388,25 +482,16 @@ onMounted(() => {
         </div>
       </div>
       <div class="mt-2 flex items-center gap-2">
-        <button
-          class="flex items-center gap-1.5 rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          :disabled="store.running"
-          @click="runSelectionOrAll"
-        >
-          <Play :size="13" />
-          {{ store.running ? 'Running…' : 'Run Query' }}
-        </button>
-        <button
-          class="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-900/60"
-          @click="onFormat"
-        >
-          Format
-        </button>
         <span class="text-[10px] text-slate-500">Ctrl+Enter run • Ctrl+Shift+F format</span>
         <span v-if="store.queryError" class="text-xs text-red-300">{{ store.queryError }}</span>
-        <span v-if="store.queryResult" class="ml-auto text-xs text-slate-400">
-          {{ store.queryResult.rowCount.toLocaleString() }} rows in
-          {{ store.queryResult.executionTime.toFixed(2) }} ms
+        <span
+          v-if="activeResult && !activeResult.error && activeResult.rowCount > 0"
+          class="ml-auto text-xs text-slate-400"
+        >
+          {{ activeResult.rowCount.toLocaleString() }} rows
+          <template v-if="activeResult.countExecutionTime != null">
+            • count in {{ activeResult.countExecutionTime.toFixed(2) }} ms
+          </template>
         </span>
       </div>
       <div
@@ -416,20 +501,102 @@ onMounted(() => {
       ></div>
     </div>
 
+    <div
+      v-if="contextMenu.open"
+      class="fixed z-50 min-w-44 rounded-md border border-slate-700 bg-slate-900 py-1 shadow-lg"
+      :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
+      @pointerdown.stop
+    >
+      <button
+        class="flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800 disabled:cursor-default disabled:opacity-40"
+        :disabled="!contextEdit.hasSelection"
+        @click="onCut"
+      >
+        <span>Cut</span>
+        <kbd class="text-[10px] text-slate-500">Ctrl+X</kbd>
+      </button>
+      <button
+        class="flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800 disabled:cursor-default disabled:opacity-40"
+        :disabled="!contextEdit.hasSelection"
+        @click="onCopy"
+      >
+        <span>Copy</span>
+        <kbd class="text-[10px] text-slate-500">Ctrl+C</kbd>
+      </button>
+      <button
+        class="flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800"
+        @click="onPaste"
+      >
+        <span>Paste</span>
+        <kbd class="text-[10px] text-slate-500">Ctrl+V</kbd>
+      </button>
+      <button
+        class="flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800"
+        @click="onSelectAll"
+      >
+        <span>Select All</span>
+        <kbd class="text-[10px] text-slate-500">Ctrl+A</kbd>
+      </button>
+      <div class="my-1 border-t border-slate-800"></div>
+      <button
+        class="flex w-full items-center justify-between gap-4 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800"
+        @click="onFormat"
+      >
+        <span>Format SQL</span>
+        <kbd class="text-[10px] text-slate-500">Ctrl+Shift+F</kbd>
+      </button>
+    </div>
+
     <div class="flex min-h-0 flex-1 flex-col">
-      <template v-if="store.queryResult">
+      <div v-if="store.queryTabs.length > 0" class="flex gap-1 overflow-x-auto border-b border-slate-800 px-2 pt-1.5">
+        <button
+          v-for="(tab, i) in store.queryTabs"
+          :key="tab.id"
+          class="group flex max-w-56 flex-none items-center gap-1.5 rounded-t border-b-2 px-2.5 py-1.5 text-xs transition-colors"
+          :class="
+            i === store.activeTab
+              ? 'border-emerald-500 bg-slate-900 text-slate-100'
+              : 'border-transparent text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+          "
+          @click="store.activeTab = i"
+        >
+          <span class="truncate">{{ tab.title }}</span>
+          <span
+            v-if="tab.state === 'running'"
+            class="h-3 w-3 flex-none animate-spin rounded-full border border-slate-400 border-t-transparent"
+          ></span>
+          <span
+            v-else-if="tab.error"
+            class="flex-none text-red-400"
+            title="Query failed"
+          >!</span>
+          <span
+            v-else
+            class="flex-none text-slate-500 opacity-0 transition-opacity group-hover:opacity-100 hover:text-slate-200"
+            @click.stop="store.closeTab(i)"
+          >×</span>
+        </button>
+      </div>
+      <template v-if="activeResult">
+        <div
+          v-if="activeResult.error"
+          class="flex flex-1 items-center justify-center overflow-auto p-4 text-center text-xs text-red-300"
+        >
+          {{ activeResult.error }}
+        </div>
         <DataGrid
-          :columns="store.queryResult.columns"
-          :rows="store.queryResult.rows"
-          :loading="store.running"
+          v-else
+          :columns="activeResult.columns"
+          :rows="activeResult.rows"
+          :loading="store.running && activeResult.state === 'running'"
         />
         <div
-          v-if="store.queryResult.pageSize > 0"
+          v-if="!activeResult.error && activeResult.pageSize > 0"
           class="flex items-center gap-2 border-t border-slate-800 px-4 py-2"
         >
           <select
             class="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 outline-none"
-            :value="store.queryResult.pageSize"
+            :value="activeResult.pageSize"
             :disabled="store.running"
             @change="onPageSizeChange"
           >
@@ -462,18 +629,18 @@ onMounted(() => {
             Next ›
           </button>
           <span class="ml-auto text-xs text-slate-400">
-            <template v-if="store.queryResult.total != null">
-              {{ ((store.queryResult.page - 1) * store.queryResult.pageSize + 1).toLocaleString() }}–{{
-                ((store.queryResult.page - 1) * store.queryResult.pageSize + store.queryResult.rowCount).toLocaleString()
+            <template v-if="activeResult.total != null">
+              {{ ((activeResult.page - 1) * activeResult.pageSize + 1).toLocaleString() }}–{{
+                ((activeResult.page - 1) * activeResult.pageSize + activeResult.rowCount).toLocaleString()
               }}
               of
-              {{ store.queryResult.total.toLocaleString() }}
+              {{ activeResult.total.toLocaleString() }}
               rows
             </template>
             <template v-else>
-              {{ store.queryResult.rowCount.toLocaleString() }} rows
+              {{ activeResult.rowCount.toLocaleString() }} rows
             </template>
-            in {{ store.queryResult.executionTime.toFixed(2) }} ms
+            in {{ activeResult.executionTime.toFixed(2) }} ms
           </span>
         </div>
       </template>

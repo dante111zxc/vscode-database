@@ -219,3 +219,82 @@ export function kindLabel(kind: Suggestion['kind']): string {
       return 'KEY'
   }
 }
+
+export function splitStatements(sql: string): string[] {
+  const statements: string[] = []
+  let current = ''
+  let quote: string | null = null
+  let inLine = false
+  let inBlock = false
+  let i = 0
+  while (i < sql.length) {
+    const ch = sql[i]
+    const next = sql[i + 1]
+    if (inLine) {
+      current += ch
+      if (ch === '\n') {
+        inLine = false
+      }
+      i += 1
+      continue
+    }
+    if (inBlock) {
+      current += ch
+      if (ch === '*' && next === '/') {
+        current += next
+        i += 2
+        inBlock = false
+        continue
+      }
+      i += 1
+      continue
+    }
+    if (quote) {
+      current += ch
+      if (ch === quote) {
+        if (next === quote) {
+          current += next
+          i += 2
+          continue
+        }
+        quote = null
+      }
+      i += 1
+      continue
+    }
+    if (ch === '-' && next === '-') {
+      inLine = true
+      current += ch
+      i += 1
+      continue
+    }
+    if (ch === '/' && next === '*') {
+      inBlock = true
+      current += ch
+      i += 1
+      continue
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch
+      current += ch
+      i += 1
+      continue
+    }
+    if (ch === ';') {
+      const statement = current.trim()
+      if (statement.length > 0) {
+        statements.push(statement)
+      }
+      current = ''
+      i += 1
+      continue
+    }
+    current += ch
+    i += 1
+  }
+  const tail = current.trim()
+  if (tail.length > 0) {
+    statements.push(tail)
+  }
+  return statements
+}

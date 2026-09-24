@@ -190,6 +190,7 @@ export class QueryPanel {
     page: number
     pageSize: number
     total: number | null
+    statementId?: string
   } | null = null
 
   private postingPage = false
@@ -251,19 +252,19 @@ export class QueryPanel {
       }
       case 'runQuery': {
         const payload = message.payload ?? {}
-        await this.runQuery(String(payload.sql ?? ''))
+        await this.runQuery(String(payload.sql ?? ''), payload)
         break
       }
       case 'queryPage': {
         const payload = message.payload ?? {}
         const page = Math.max(1, Number(payload.page ?? 1))
-        await this.goToPage(page)
+        await this.goToPage(page, payload)
         break
       }
       case 'queryPageSize': {
         const payload = message.payload ?? {}
         const size = Math.max(1, Number(payload.pageSize ?? QUERY_PAGE_SIZE))
-        await this.setPageSize(size)
+        await this.setPageSize(size, payload)
         break
       }
       default:
@@ -271,7 +272,7 @@ export class QueryPanel {
     }
   }
 
-  private async runQuery(sql: string): Promise<void> {
+  private async runQuery(sql: string, payload: Record<string, unknown> = {}): Promise<void> {
     try {
       if (!this.manager.isConnected(this.target.connectionId)) {
         await this.manager.connect(this.target.connectionId)
@@ -280,6 +281,7 @@ export class QueryPanel {
       if (!driver) {
         throw new Error('Connection is not active')
       }
+      const statementId = typeof payload.statementId === 'string' ? payload.statementId : undefined
       const target = sql.trim()
       this.currentSql = sql
       if (canPaginate(target)) {
@@ -289,6 +291,7 @@ export class QueryPanel {
           page: 1,
           pageSize: QUERY_PAGE_SIZE,
           total: null,
+          statementId,
         }
         await this.loadPage()
         return
@@ -303,6 +306,8 @@ export class QueryPanel {
         page: 1,
         pageSize: 0,
         executionTime: result.executionTime,
+        sql: target,
+        statementId,
       })
     } catch (error) {
       this.pagination = null
@@ -315,15 +320,29 @@ export class QueryPanel {
         pageSize: 0,
         executionTime: 0,
         error: toMessage(error),
+        statementId: typeof payload.statementId === 'string' ? payload.statementId : undefined,
       })
     }
   }
 
-  private async goToPage(page: number): Promise<void> {
-    const pagination = this.pagination
-    if (!pagination || this.postingPage) {
+  private async goToPage(page: number, payload: Record<string, unknown> = {}): Promise<void> {
+    if (!this.pagination || this.postingPage) {
       return
     }
+    const statementId = typeof payload.statementId === 'string' ? payload.statementId : undefined
+    const raw = typeof payload.sql === 'string' ? payload.sql.trim().replace(/;\s*$/, '') : ''
+    if (raw && raw !== this.pagination.sql) {
+      this.pagination = {
+        sql: raw,
+        page: 1,
+        pageSize: this.pagination.pageSize || QUERY_PAGE_SIZE,
+        total: null,
+        statementId,
+      }
+    } else if (statementId) {
+      this.pagination.statementId = statementId
+    }
+    const pagination = this.pagination
     if (pagination.total !== null) {
       const lastPage = Math.max(1, Math.ceil(pagination.total / pagination.pageSize))
       pagination.page = Math.min(Math.max(1, page), lastPage)
@@ -333,13 +352,27 @@ export class QueryPanel {
     await this.loadPage()
   }
 
-  private async setPageSize(size: number): Promise<void> {
-    const pagination = this.pagination
-    if (!pagination || this.postingPage) {
+  private async setPageSize(size: number, payload: Record<string, unknown> = {}): Promise<void> {
+    if (!this.pagination || this.postingPage) {
       return
     }
-    pagination.pageSize = size
-    pagination.page = 1
+    const statementId = typeof payload.statementId === 'string' ? payload.statementId : undefined
+    const raw = typeof payload.sql === 'string' ? payload.sql.trim().replace(/;\s*$/, '') : ''
+    if (raw && raw !== this.pagination.sql) {
+      this.pagination = {
+        sql: raw,
+        page: 1,
+        pageSize: size,
+        total: null,
+        statementId,
+      }
+    } else {
+      if (statementId) {
+        this.pagination.statementId = statementId
+      }
+      this.pagination.pageSize = size
+      this.pagination.page = 1
+    }
     await this.loadPage()
   }
 
@@ -384,6 +417,8 @@ export class QueryPanel {
         pageSize: pagination.pageSize,
         executionTime: result.executionTime,
         countExecutionTime: this.countExecutionTime,
+        sql: pagination.sql,
+        statementId: pagination.statementId,
       })
     } catch (error) {
       await this.post('queryResult', {
@@ -395,6 +430,7 @@ export class QueryPanel {
         pageSize: pagination.pageSize,
         executionTime: 0,
         error: toMessage(error),
+        statementId: pagination.statementId,
       })
     } finally {
       this.postingPage = false
