@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+.ql-shell {
+  position: relative;
+  overflow: hidden;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+}
+
+.ql-layer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 12px;
+}
+
+pre.ql-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  overflow: hidden;
+  color: #e2e8f0;
+  pointer-events: none;
+  white-space: pre;
+  height: auto;
+  min-height: 100%;
+  will-change: transform;
+}
+
+textarea.ql-layer.ql-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  overflow: auto;
+  color: transparent;
+  caret-color: #e2e8f0;
+  background: transparent;
+  outline: none;
+  white-space: pre;
+}
+
+textarea.ql-layer.ql-input::placeholder {
+  color: #475569;
+}
+
+textarea.ql-layer.ql-input {
+  scrollbar-gutter: stable;
+}
+
+.ql-resizer {
+  height: 8px;
+  margin: 6px -4px -6px;
+  cursor: row-resize;
+  touch-action: none;
+  position: relative;
+}
+
+.ql-resizer::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.ql-resizer:hover::after,
+.ql-resizer:active::after {
+  background: #64748b;
+}
+
+.ql-layer.ql-mirror {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  visibility: hidden;
+  overflow: hidden;
+  white-space: pre;
+}
+
+.ql-suggest {
+  position: absolute;
+  z-index: 30;
+  min-width: 220px;
+  max-width: 360px;
+  max-height: 220px;
+  overflow: auto;
+  background: #0b1220;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ql-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.ql-suggest-item.active {
+  background: #164e63;
+}
+
+.ql-suggest-text {
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.ql-suggest-kind {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 9px;
+  color: #7dd3fc;
+  border: 1px solid #0e7490;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.tok-keyword {
+  color: #c586c0;
+}
+
+.tok-string {
+  color: #ce9178;
+}
+
+.tok-number {
+  color: #b5cea8;
+}
+
+.tok-comment {
+  color: #6a9955;
+  font-style: italic;
+}

@@ -1,0 +1,349 @@
+{
+  "name": "database-manager",
+  "displayName": "Database Manager",
+  "description": "Database Manager - quản lý cơ sở dữ liệu PostgreSQL, MySQL và SQLite ngay trong VS Code: kết nối nhiều server, duyệt schema/bảng, xem dữ liệu phân trang, truy vấn SQL với gợi ý và tô màu cú pháp, lưu truy vấn, xuất/nhập và xóa bảng.",
+  "publisher": "dante111zxc",
+  "version": "0.0.2",
+  "icon": "assets/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Data Science"
+  ],
+  "keywords": [
+    "database",
+    "postgresql",
+    "postgres",
+    "mysql",
+    "sqlite",
+    "sql",
+    "query",
+    "schema",
+    "table"
+  ],
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dante111zxc/database-manager"
+  },
+  "activationEvents": [
+    "onView:databaseManager.explorer",
+    "onView:databaseManager.connections",
+    "onCommand:database-manager.addConnection",
+    "onCommand:database-manager.editConnection",
+    "onCommand:database-manager.connect",
+    "onCommand:database-manager.disconnect",
+    "onCommand:database-manager.deleteConnection",
+    "onCommand:database-manager.refresh",
+    "onCommand:database-manager.openTable",
+    "onCommand:database-manager.openQuery",
+    "onCommand:database-manager.openSavedQuery",
+    "onCommand:database-manager.deleteSavedQuery",
+    "onCommand:database-manager.renameSavedQuery",
+    "onCommand:database-manager.dropSchema",
+    "onCommand:database-manager.exportDatabase",
+    "onCommand:database-manager.importDatabase",
+    "onCommand:database-manager.dropTable",
+    "onCommand:database-manager.truncateTable",
+    "onCommand:database-manager.exportTable",
+    "onCommand:database-manager.importTable"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "database-manager.addConnection",
+        "title": "New Connection",
+        "category": "Database Manager",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "database-manager.editConnection",
+        "title": "Edit Connection",
+        "category": "Database Manager",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "database-manager.connect",
+        "title": "Connect",
+        "category": "Database Manager",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "database-manager.disconnect",
+        "title": "Disconnect",
+        "category": "Database Manager",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "database-manager.deleteConnection",
+        "title": "Delete Connection",
+        "category": "Database Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "database-manager.refresh",
+        "title": "Refresh",
+        "category": "Database Manager",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "database-manager.openTable",
+        "title": "Open Table",
+        "category": "Database Manager",
+        "icon": "$(table)"
+      },
+      {
+        "command": "database-manager.openQuery",
+        "title": "New Query Console",
+        "category": "Database Manager",
+        "icon": "$(console)"
+      },
+      {
+        "command": "database-manager.openSavedQuery",
+        "title": "Open Query Console",
+        "category": "Database Manager",
+        "icon": "$(history)"
+      },
+      {
+        "command": "database-manager.deleteSavedQuery",
+        "title": "Delete Saved Query",
+        "category": "Database Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "database-manager.renameSavedQuery",
+        "title": "Rename Saved Query",
+        "category": "Database Manager",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "database-manager.dropSchema",
+        "title": "Drop Schema",
+        "category": "Database Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "database-manager.exportDatabase",
+        "title": "Export Database",
+        "category": "Database Manager",
+        "icon": "$(export)"
+      },
+      {
+        "command": "database-manager.importDatabase",
+        "title": "Import Database",
+        "category": "Database Manager",
+        "icon": "$(import)"
+      },
+      {
+        "command": "database-manager.dropTable",
+        "title": "Drop Table",
+        "category": "Database Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "database-manager.truncateTable",
+        "title": "Truncate Table",
+        "category": "Database Manager",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "database-manager.exportTable",
+        "title": "Export Table",
+        "category": "Database Manager",
+        "icon": "$(export)"
+      },
+      {
+        "command": "database-manager.importTable",
+        "title": "Import Table",
+        "category": "Database Manager",
+        "icon": "$(import)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "database-manager-explorer",
+          "title": "Database Manager",
+          "icon": "resources/icons/database.svg"
+        }
+      ]
+    },
+    "views": {
+      "database-manager-explorer": [
+        {
+          "type": "webview",
+          "id": "databaseManager.connections",
+          "name": "Connection Manager"
+        },
+        {
+          "id": "databaseManager.explorer",
+          "name": "Connections",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "database-manager.addConnection",
+          "when": "view == databaseManager.connections || view == databaseManager.explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "database-manager.refresh",
+          "when": "view == databaseManager.explorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "database-manager.connect",
+          "when": "view == databaseManager.explorer && viewItem == connection",
+          "group": "1_connection"
+        },
+        {
+          "command": "database-manager.disconnect",
+          "when": "view == databaseManager.explorer && viewItem == connection",
+          "group": "1_connection"
+        },
+        {
+          "command": "database-manager.editConnection",
+          "when": "view == databaseManager.explorer && viewItem == connection",
+          "group": "2_manage"
+        },
+        {
+          "command": "database-manager.deleteConnection",
+          "when": "view == databaseManager.explorer && viewItem == connection",
+          "group": "2_manage"
+        },
+        {
+          "command": "database-manager.openQuery",
+          "when": "view == databaseManager.explorer && viewItem == schema",
+          "group": "1_query@1"
+        },
+        {
+          "command": "database-manager.openSavedQuery",
+          "when": "view == databaseManager.explorer && viewItem == savedquery",
+          "group": "1_query@1"
+        },
+        {
+          "command": "database-manager.renameSavedQuery",
+          "when": "view == databaseManager.explorer && viewItem == savedquery",
+          "group": "1_query@2"
+        },
+        {
+          "command": "database-manager.deleteSavedQuery",
+          "when": "view == databaseManager.explorer && viewItem == savedquery",
+          "group": "3_danger"
+        },
+        {
+          "command": "database-manager.refresh",
+          "when": "view == databaseManager.explorer && (viewItem == schema || viewItem == table || viewItem == view)",
+          "group": "0_refresh"
+        },
+        {
+          "command": "database-manager.exportDatabase",
+          "when": "view == databaseManager.explorer && viewItem == schema",
+          "group": "2_transfer@1"
+        },
+        {
+          "command": "database-manager.importDatabase",
+          "when": "view == databaseManager.explorer && viewItem == schema",
+          "group": "2_transfer@2"
+        },
+        {
+          "command": "database-manager.dropSchema",
+          "when": "view == databaseManager.explorer && viewItem == schema",
+          "group": "3_danger"
+        },
+        {
+          "command": "database-manager.openTable",
+          "when": "view == databaseManager.explorer && (viewItem == table || viewItem == view)",
+          "group": "1_data@1"
+        },
+        {
+          "command": "database-manager.exportTable",
+          "when": "view == databaseManager.explorer && (viewItem == table || viewItem == view)",
+          "group": "2_transfer@1"
+        },
+        {
+          "command": "database-manager.importTable",
+          "when": "view == databaseManager.explorer && viewItem == table",
+          "group": "2_transfer@2"
+        },
+        {
+          "command": "database-manager.dropTable",
+          "when": "view == databaseManager.explorer && viewItem == table",
+          "group": "3_danger"
+        },
+        {
+          "command": "database-manager.truncateTable",
+          "when": "view == databaseManager.explorer && viewItem == table",
+          "group": "3_danger"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Database Manager",
+      "properties": {
+        "database-manager.maxTableRows": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 1,
+          "description": "Maximum number of rows fetched when viewing table data."
+        },
+        "database-manager.hideSystemDatabases": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hide system databases/schemas (e.g. information_schema, pg_catalog)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn run package",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "yarn run check-types && yarn run lint && npm run build:webview && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build:webview": "npm --prefix webview run build",
+    "build": "npm run compile && npm run build:webview",
+    "package:vsix": "vsce package --out dist/"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.13.5",
+    "@types/pg": "^8.23.1",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.4",
+    "pg": "^8.16.3"
+  }
+}
