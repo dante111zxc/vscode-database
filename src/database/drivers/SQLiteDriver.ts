@@ -44,6 +44,18 @@ export class SQLiteDriver implements DatabaseDriver {
     return this.db !== null
   }
 
+  public async ping(): Promise<boolean> {
+    if (!this.db) {
+      return false
+    }
+    try {
+      this.db.prepare('SELECT 1').get()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   public async testConnection(config: ConnectionConfig): Promise<boolean> {
     if (!config.filePath) {
       throw new Error('Database file path is required for SQLite')

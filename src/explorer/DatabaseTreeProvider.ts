@@ -225,6 +225,10 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<vscode.Tree
     this.onDidChangeTreeDataEmitter.fire()
   }
 
+  public refreshItem(element?: vscode.TreeItem): void {
+    this.onDidChangeTreeDataEmitter.fire(element)
+  }
+
   public async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
     if (!element) {
       return this.getConnectionItems()
@@ -266,8 +270,9 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<vscode.Tree
   private async getConnectionItems(): Promise<vscode.TreeItem[]> {
     try {
       const connections = await this.manager.getConnections()
+      const liveConnected = new Set(await this.manager.getLiveConnectedIds())
       return connections.map(
-        (connection) => new ConnectionItem(connection, this.manager.isConnected(connection.id))
+        (connection) => new ConnectionItem(connection, liveConnected.has(connection.id))
       )
     } catch (error) {
       return [new PlaceholderItem(`Failed to load connections: ${toMessage(error)}`)]
@@ -276,10 +281,10 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<vscode.Tree
 
   private async getDatabaseItems(item: ConnectionItem): Promise<vscode.TreeItem[]> {
     const { connectionId } = item
+    if (!this.manager.isConnected(connectionId)) {
+      return [new PlaceholderItem('Not connected — use Connect to list databases')]
+    }
     try {
-      if (!this.manager.isConnected(connectionId)) {
-        await this.manager.connect(connectionId)
-      }
       const driver = this.manager.getDriver(connectionId)
       if (!driver) {
         throw new Error('No active driver for this connection')

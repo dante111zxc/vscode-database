@@ -72,7 +72,7 @@ dist/database-manager-0.0.1.vsix
 ### Cách 2 — CLI
 
 ```bash
-code --install-extension dist/database-manager-0.0.1.vsix
+code --install-extension dist/database-manager-0.0.2.vsix
 ```
 
 ### Kiểm tra hoạt động

@@ -49,6 +49,18 @@ export class MySQLDriver implements DatabaseDriver {
     return this.connection !== null
   }
 
+  public async ping(): Promise<boolean> {
+    if (!this.connection) {
+      return false
+    }
+    try {
+      await this.connection.ping()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   public async testConnection(config: ConnectionConfig): Promise<boolean> {
     let conn: mysql.Connection | null = null
     try {

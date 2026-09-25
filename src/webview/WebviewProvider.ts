@@ -179,9 +179,7 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     const editing = this.editingId
       ? connections.find((c) => c.id === this.editingId) ?? null
       : null
-    const connectedIds = connections
-      .filter((c) => this.manager.isConnected(c.id))
-      .map((c) => c.id)
+    const connectedIds = await this.manager.getLiveConnectedIds()
     await this.post('initialData', {
       connections,
       editing,

@@ -37,6 +37,11 @@ export interface DatabaseDriver {
   isConnected(): boolean
 
   /**
+   * Verify the connection is still alive by running a lightweight query.
+   */
+  ping(): Promise<boolean>
+
+  /**
    * Test database connection.
    */
   testConnection(config: ConnectionConfig): Promise<boolean>

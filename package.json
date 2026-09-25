@@ -41,11 +41,14 @@
     "onCommand:database-manager.disconnect",
     "onCommand:database-manager.deleteConnection",
     "onCommand:database-manager.refresh",
+    "onCommand:database-manager.refreshItem",
     "onCommand:database-manager.openTable",
     "onCommand:database-manager.openQuery",
     "onCommand:database-manager.openSavedQuery",
     "onCommand:database-manager.deleteSavedQuery",
     "onCommand:database-manager.renameSavedQuery",
+    "onCommand:database-manager.createDatabase",
+    "onCommand:database-manager.dropDatabase",
     "onCommand:database-manager.dropSchema",
     "onCommand:database-manager.exportDatabase",
     "onCommand:database-manager.importDatabase",
@@ -94,6 +97,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "database-manager.refreshItem",
+        "title": "Refresh",
+        "category": "Database Manager",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "database-manager.openTable",
         "title": "Open Table",
         "category": "Database Manager",
@@ -122,6 +131,18 @@
         "title": "Rename Saved Query",
         "category": "Database Manager",
         "icon": "$(edit)"
+      },
+      {
+        "command": "database-manager.createDatabase",
+        "title": "Create Database",
+        "category": "Database Manager",
+        "icon": "$(add)"
+      },
+      {
+        "command": "database-manager.dropDatabase",
+        "title": "Drop Database",
+        "category": "Database Manager",
+        "icon": "$(trash)"
       },
       {
         "command": "database-manager.dropSchema",
@@ -204,6 +225,11 @@
       ],
       "view/item/context": [
         {
+          "command": "database-manager.refreshItem",
+          "when": "view == databaseManager.explorer && (viewItem == connection || viewItem == database)",
+          "group": "0_refresh"
+        },
+        {
           "command": "database-manager.connect",
           "when": "view == databaseManager.explorer && viewItem == connection",
           "group": "1_connection"
@@ -222,6 +248,16 @@
           "command": "database-manager.deleteConnection",
           "when": "view == databaseManager.explorer && viewItem == connection",
           "group": "2_manage"
+        },
+        {
+          "command": "database-manager.createDatabase",
+          "when": "view == databaseManager.explorer && viewItem == connection",
+          "group": "1_connection@3"
+        },
+        {
+          "command": "database-manager.dropDatabase",
+          "when": "view == databaseManager.explorer && viewItem == database",
+          "group": "1_database@1"
         },
         {
           "command": "database-manager.openQuery",
@@ -250,12 +286,12 @@
         },
         {
           "command": "database-manager.exportDatabase",
-          "when": "view == databaseManager.explorer && viewItem == schema",
+          "when": "view == databaseManager.explorer && (viewItem == schema || viewItem == database)",
           "group": "2_transfer@1"
         },
         {
           "command": "database-manager.importDatabase",
-          "when": "view == databaseManager.explorer && viewItem == schema",
+          "when": "view == databaseManager.explorer && (viewItem == schema || viewItem == database)",
           "group": "2_transfer@2"
         },
         {
@@ -343,6 +379,7 @@
     "serialize-javascript": "^7.0.6"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "mysql2": "^3.24.4",
     "pg": "^8.16.3"
   }

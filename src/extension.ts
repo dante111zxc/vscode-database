@@ -4,6 +4,7 @@ import { QueryStore } from './database/queryStore'
 import {
   DatabaseTreeProvider,
   ConnectionItem,
+  DatabaseItem,
   SchemaItem,
   TableItem,
   SchemaObjectItem,
@@ -11,8 +12,10 @@ import {
 } from './explorer/DatabaseTreeProvider'
 import { WebviewProvider } from './webview/WebviewProvider'
 import { TableDataPanel, QueryPanel } from './panels/panels'
-import type { TableRef, SchemaRef } from './commands/dataActions'
+import type { TableRef, SchemaRef, DatabaseRef, DatabaseTransferRef } from './commands/dataActions'
 import {
+  createDatabase,
+  dropDatabase,
   dropTable,
   truncateTable,
   dropSchema,
@@ -87,7 +90,23 @@ export async function activate(
       await manager.deleteConnection(item.connection.id)
       treeProvider.refresh()
     }),
+    vscode.commands.registerCommand('database-manager.createDatabase', async (item?: ConnectionItem) => {
+      if (!item) {
+        return
+      }
+      void createDatabase(manager, item.connection.id).catch(reportError)
+    }),
+    vscode.commands.registerCommand('database-manager.dropDatabase', (item?: unknown) => {
+      const target = databaseRefFrom(item)
+      if (!target) {
+        return
+      }
+      void dropDatabase(manager, target).catch(reportError)
+    }),
     vscode.commands.registerCommand('database-manager.refresh', () => treeProvider.refresh()),
+    vscode.commands.registerCommand('database-manager.refreshItem', (item?: vscode.TreeItem) => {
+      treeProvider.refreshItem(item)
+    }),
     vscode.commands.registerCommand('database-manager.openTable', (ref?: unknown) => {
       const target = tableRefFrom(ref)
       if (!target) {
@@ -164,14 +183,14 @@ export async function activate(
       void dropSchema(manager, target).catch(reportError)
     }),
     vscode.commands.registerCommand('database-manager.exportDatabase', (ref?: unknown) => {
-      const target = schemaRefFrom(ref)
+      const target = transferRefFrom(ref)
       if (!target) {
         return
       }
       void exportDatabase(manager, target).catch(reportError)
     }),
     vscode.commands.registerCommand('database-manager.importDatabase', (ref?: unknown) => {
-      const target = schemaRefFrom(ref)
+      const target = transferRefFrom(ref)
       if (!target) {
         return
       }
@@ -251,6 +270,33 @@ function schemaRefFrom(item: unknown): SchemaRef | undefined {
   }
   if (isRecord(item) && typeof item.connectionId === 'string' && typeof item.schema === 'string') {
     return item as unknown as SchemaRef
+  }
+  return undefined
+}
+
+function databaseRefFrom(item: unknown): DatabaseRef | undefined {
+  if (item instanceof DatabaseItem) {
+    return { connectionId: item.connectionId, database: item.name }
+  }
+  if (isRecord(item) && typeof item.connectionId === 'string' && typeof item.database === 'string') {
+    return item as unknown as DatabaseRef
+  }
+  return undefined
+}
+
+function transferRefFrom(item: unknown): DatabaseTransferRef | undefined {
+  if (item instanceof DatabaseItem) {
+    return { connectionId: item.connectionId, database: item.name }
+  }
+  if (item instanceof SchemaItem) {
+    return {
+      connectionId: item.connectionId,
+      database: item.database,
+      schema: item.schema,
+    }
+  }
+  if (isRecord(item) && typeof item.connectionId === 'string' && typeof item.database === 'string') {
+    return item as unknown as DatabaseTransferRef
   }
   return undefined
 }

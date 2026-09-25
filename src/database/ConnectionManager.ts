@@ -110,7 +110,7 @@ export class ConnectionManager {
     this.onDidChangeConnectionStatusEmitter.fire(id)
   }
 
-  public async disconnect(id: string): Promise<void> {
+  public async disconnect(id: string, notify = true): Promise<void> {
     const active = this.activeConnections.get(id)
     if (!active) {
       return
@@ -119,7 +119,9 @@ export class ConnectionManager {
       await active.driver.disconnect()
     } finally {
       this.activeConnections.delete(id)
-      this.onDidChangeConnectionStatusEmitter.fire(id)
+      if (notify) {
+        this.onDidChangeConnectionStatusEmitter.fire(id)
+      }
     }
   }
 
@@ -130,6 +132,41 @@ export class ConnectionManager {
 
   public isConnected(id: string): boolean {
     return this.activeConnections.has(id)
+  }
+
+  public async verifyConnected(id: string): Promise<boolean> {
+    const active = this.activeConnections.get(id)
+    if (!active) {
+      return false
+    }
+    try {
+      return await active.driver.ping()
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Ping every active connection, prune the dead ones, and return the ids
+   * that are actually reachable. This reflects real server state instead of
+   * just tracking in-memory driver objects (e.g. a host that went offline).
+   */
+  public async getLiveConnectedIds(): Promise<string[]> {
+    const ids = [...this.activeConnections.keys()]
+    const live: string[] = []
+    for (const id of ids) {
+      const active = this.activeConnections.get(id)
+      if (!active) {
+        continue
+      }
+      const ok = await this.verifyConnected(id)
+      if (ok) {
+        live.push(id)
+      } else {
+        await this.disconnect(id, false)
+      }
+    }
+    return live
   }
 
   public getDriver(id: string): DatabaseDriver | undefined {

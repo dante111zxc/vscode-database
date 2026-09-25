@@ -48,6 +48,18 @@ export class PostgresDriver implements DatabaseDriver {
     return this.client !== null
   }
 
+  public async ping(): Promise<boolean> {
+    if (!this.client) {
+      return false
+    }
+    try {
+      await this.client.query('SELECT 1')
+      return true
+    } catch {
+      return false
+    }
+  }
+
   public async testConnection(config: ConnectionConfig): Promise<boolean> {
     const client = new Client({
       host: config.host,
